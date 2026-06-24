@@ -1,2 +1,637 @@
-# work
-work
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор</title>
+    <!-- Подключаем библиотеки для генерации PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px;
+        }
+        .main-container {
+            max-width: 1400px; margin: 0 auto; background: white;
+            border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; font-size: 32px; }
+        .content { display: grid; grid-template-columns: 450px 1fr; gap: 30px; }
+        .controls { background: #f8f9fa; padding: 25px; border-radius: 15px; max-height: 850px; overflow-y: auto; }
+        .section { margin-bottom: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .section h3 { color: #764ba2; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #764ba2; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+        .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; margin-bottom: 5px; color: #555; font-size: 12px; font-weight: 600; }
+        .input-group input { width: 100%; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; background: #fafafa; }
+        .input-group input:focus { outline: none; border-color: #764ba2; background: white; box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1); }
+        .box-list { margin-top: 15px; max-height: 500px; overflow-y: auto; }
+        .box-item { background: #f8f9fa; padding: 15px; margin-bottom: 12px; border-radius: 10px; border: 2px solid #e0e0e0; transition: all 0.3s; }
+        .box-item:hover { border-color: #764ba2; box-shadow: 0 2px 8px rgba(118, 75, 162, 0.1); }
+        .box-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .box-item-title { font-weight: 600; color: #764ba2; font-size: 14px; }
+        .remove-box { background: #ff4444; color: white; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+        .remove-box:hover { background: #cc0000; }
+        .box-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .box-field { display: flex; flex-direction: column; }
+        .box-field label { font-size: 11px; color: #666; font-weight: 600; margin-bottom: 3px; }
+        .box-field input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+        .box-field input:focus { outline: none; border-color: #764ba2; }
+        .btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%; padding: 16px; font-size: 16px; margin-top: 15px; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); }
+        .btn-success { background: #28a745; color: white; font-size: 13px; padding: 8px 16px; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-outline { background: white; color: #764ba2; border: 2px solid #764ba2; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .results { margin-top: 20px; }
+        .result-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #764ba2; }
+        .result-card.success { border-left-color: #28a745; }
+        .statistics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .stat-item { background: white; padding: 15px; border-radius: 10px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: bold; color: #764ba2; }
+        .stat-label { font-size: 11px; color: #666; margin-top: 5px; }
+        .visualization { background: #f8f9fa; border-radius: 15px; overflow: hidden; position: relative; }
+        #canvas-container { width: 100%; height: 650px; cursor: grab; }
+        #canvas-container:active { cursor: grabbing; }
+        .view-controls { position: absolute; top: 15px; right: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .view-btn { background: rgba(255,255,255,0.95); border: 1px solid #ddd; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .view-btn:hover { background: #764ba2; color: white; }
+        .legend { position: absolute; bottom: 50px; left: 15px; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 10px; font-size: 11px; max-height: 250px; overflow-y: auto; }
+        .hint { position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.75); color: white; padding: 8px 15px; border-radius: 8px; font-size: 11px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .btn-group .btn { flex: 1; min-width: 100px; }
+        #loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 10px; z-index: 1000; }
+        @media (max-width: 1024px) { .content { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <h1>Калькулятор загрузки</h1>
+    <div class="content">
+        <div class="controls">
+            <div class="section">
+                <h3>🚛 Транспортное средство</h3>
+                <div class="input-row">
+                    <div class="input-group"><label>Длина (мм)</label><input type="number" id="vl" value="12056" min="1"></div>
+                    <div class="input-group"><label>Ширина (мм)</label><input type="number" id="vw" value="2347" min="1"></div>
+                    <div class="input-group"><label>Высота (мм)</label><input type="number" id="vh" value="2684" min="1"></div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group"><label>Грузоподъёмность (кг)</label><input type="number" id="vweight" value="30000" min="1"></div>
+                    <div class="input-group"><label>Зазор (мм)</label><input type="number" id="gap" value="2" min="0" step="0.5"></div>
+                </div>
+            </div>
+            <div class="section">
+                <h3>📦 Список товаров <button class="btn btn-success" id="add-btn">+ Добавить</button></h3>
+                <div class="box-list" id="box-list"></div>
+            </div>
+            <button class="btn btn-primary" id="calc-btn">Рассчитать</button>
+            <div class="results" id="results"></div>
+            <div class="btn-group">
+                <button class="btn btn-info" id="export-scheme-btn">📷 Экспорт схемы</button>
+                <button class="btn btn-outline" id="export-pdf-btn">📄 Экспорт в PDF</button>
+                <button class="btn btn-outline" id="save-btn">💾 Сохранить</button>
+                <button class="btn btn-outline" id="load-btn">📂 Загрузить</button>
+            </div>
+        </div>
+        <div class="visualization">
+            <div id="canvas-container"></div>
+            <div class="view-controls">
+                <button class="view-btn" data-view="front">Спереди</button>
+                <button class="view-btn" data-view="top">Сверху</button>
+                <button class="view-btn" data-view="side">Сбоку</button>
+                <button class="view-btn" data-view="3d">3D</button>
+            </div>
+            <div class="legend" id="legend"></div>
+            <div class="hint">🖱️ Вращение • Перемещение • Масштаб</div>
+        </div>
+    </div>
+</div>
+<div id="loading">Идёт расчёт...</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+if (!(typeof WebGLRenderingContext !== 'undefined' && document.createElement('canvas').getContext('webgl'))) {
+    alert('Ваш браузер не поддерживает WebGL.');
+}
+
+let scene, camera, renderer, controls;
+let currentResult = null;
+
+function initThree() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f5);
+    const container = document.getElementById('canvas-container');
+    camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 10, 100000);
+    camera.position.set(18000, 15000, 18000);
+    camera.lookAt(6000, 1342, 1173);
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+    dl.position.set(1, 1, 1);
+    scene.add(dl);
+    scene.add(new THREE.DirectionalLight(0xffffff, 0.4).position.set(-1, -0.5, -1));
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(6000, 1342, 1173);
+    controls.minDistance = 2000;
+    controls.maxDistance = 40000;
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+}
+
+function updateNumbers() {
+    const items = document.querySelectorAll('#box-list .box-item');
+    items.forEach((item, i) => item.querySelector('.box-item-title').textContent = `Товар ${i + 1}`);
+}
+
+function addBox() {
+    const list = document.getElementById('box-list');
+    const count = list.children.length;
+    const defaults = [
+        { l: 600, w: 400, h: 300, q: 50, weight: 25 },
+        { l: 400, w: 300, h: 200, q: 30, weight: 15 },
+        { l: 300, w: 200, h: 150, q: 20, weight: 10 }
+    ];
+    const d = defaults[count % 3];
+    const div = document.createElement('div');
+    div.className = 'box-item';
+    div.innerHTML = `
+        <div class="box-item-header">
+            <span class="box-item-title">Товар ${count + 1}</span>
+            <button class="remove-box">✕</button>
+        </div>
+        <div class="box-fields">
+            <div class="box-field"><label>Длина (мм)</label><input type="number" value="${d.l}" min="1"></div>
+            <div class="box-field"><label>Ширина (мм)</label><input type="number" value="${d.w}" min="1"></div>
+            <div class="box-field"><label>Высота (мм)</label><input type="number" value="${d.h}" min="1"></div>
+            <div class="box-field"><label>Количество</label><input type="number" value="${d.q}" min="1"></div>
+            <div class="box-field"><label>Вес 1 шт (кг)</label><input type="number" value="${d.weight}" min="0.1" step="0.1"></div>
+        </div>
+    `;
+    div.querySelector('.remove-box').addEventListener('click', () => {
+        if (document.getElementById('box-list').children.length <= 1) {
+            alert('Оставьте хотя бы один товар');
+            return;
+        }
+        div.remove();
+        updateNumbers();
+    });
+    list.appendChild(div);
+}
+
+function getOrientations(l, w, h) {
+    return [[l, w, h], [l, h, w], [w, l, h], [w, h, l], [h, l, w], [h, w, l]];
+}
+
+function pack(container, boxes, gap) {
+    let freeBlocks = [{ x: 0, y: 0, z: 0, length: container.length, width: container.width, height: container.height }];
+    const results = [];
+    let totalVolume = 0;
+
+    for (const box of boxes) {
+        const orientations = getOrientations(box.length, box.width, box.height);
+        let bestPositions = [];
+        let bestPlaced = 0;
+        let bestOrientation = [box.length, box.width, box.height];
+        let bestFreeBlocks = freeBlocks;
+
+        for (const [l, w, h] of orientations) {
+            let positions = [];
+            let placed = 0;
+            let blocks = [...freeBlocks].sort((a, b) => a.x - b.x || b.y - a.y);
+
+            for (let i = 0; i < blocks.length && placed < box.quantity; i++) {
+                const block = blocks[i];
+                if (block.length < l + gap || block.width < w + gap || block.height < h + gap) continue;
+
+                const countZ = Math.floor(block.width / (w + gap));
+                const countY = Math.floor(block.height / (h + gap));
+                if (countZ === 0 || countY === 0) continue;
+
+                const maxFit = Math.min(countZ * countY, box.quantity - placed);
+                if (maxFit === 0) continue;
+
+                let cnt = 0;
+                for (let iy = 0; iy < countY && cnt < maxFit; iy++) {
+                    for (let iz = 0; iz < countZ && cnt < maxFit; iz++) {
+                        positions.push({
+                            x: block.x + l/2,
+                            y: block.y + iy * (h + gap) + h/2,
+                            z: block.z + iz * (w + gap) + w/2
+                        });
+                        cnt++;
+                    }
+                }
+                placed += cnt;
+
+                const usedLength = l + gap;
+                const usedWidth = cnt > 0 ? Math.min(countZ, maxFit) * (w + gap) - gap : 0;
+                const usedHeight = cnt > 0 ? Math.min(countY, Math.ceil(maxFit / countZ)) * (h + gap) - gap : 0;
+
+                const occupied = {
+                    x: block.x,
+                    y: block.y,
+                    z: block.z,
+                    length: usedLength,
+                    width: usedWidth,
+                    height: usedHeight
+                };
+
+                const newBlocks = [];
+                if (block.length - (occupied.length + gap) > 0) {
+                    newBlocks.push({ x: block.x + occupied.length + gap, y: block.y, z: block.z, length: block.length - occupied.length - gap, width: block.width, height: block.height });
+                }
+                if (block.width - (occupied.width + gap) > 0) {
+                    newBlocks.push({ x: block.x, y: block.y, z: block.z + occupied.width + gap, length: occupied.length, width: block.width - occupied.width - gap, height: block.height });
+                }
+                if (block.height - (occupied.height + gap) > 0) {
+                    newBlocks.push({ x: block.x, y: block.y + occupied.height + gap, z: block.z, length: occupied.length, width: occupied.width, height: block.height - occupied.height - gap });
+                }
+                blocks.splice(i, 1, ...newBlocks);
+                blocks.sort((a, b) => a.x - b.x || b.y - a.y);
+                i--;
+            }
+
+            if (placed > bestPlaced) {
+                bestPlaced = placed;
+                bestPositions = positions;
+                bestOrientation = [l, w, h];
+                bestFreeBlocks = blocks;
+            }
+        }
+
+        if (bestPlaced > 0) {
+            const [l, w, h] = bestOrientation;
+            freeBlocks = bestFreeBlocks;
+            totalVolume += bestPlaced * l * w * h;
+            results.push({ ...box, placed: bestPlaced, orientation: bestOrientation, positions: bestPositions });
+        } else {
+            results.push({ ...box, placed: 0, orientation: [box.length, box.width, box.height], positions: [] });
+        }
+    }
+
+    const totalVol = container.length * container.width * container.height;
+    return {
+        boxes: results,
+        totalPlaced: results.reduce((s, r) => s + r.placed, 0),
+        usedVolume: totalVolume,
+        utilization: ((totalVolume / totalVol) * 100).toFixed(1),
+        totalVolume: totalVol
+    };
+}
+
+function findBestPacking(container, boxes, gap) {
+    const strategies = [
+        (a, b) => (b.length * b.width * b.height) - (a.length * a.width * a.height),
+        (a, b) => b.length - a.length,
+        (a, b) => b.height - a.height,
+        (a, b) => b.width - a.width
+    ];
+
+    let bestResult = null;
+    for (const sortFn of strategies) {
+        const sorted = [...boxes].sort(sortFn);
+        const res = pack(container, sorted, gap);
+        if (!bestResult || res.totalPlaced > bestResult.totalPlaced) bestResult = res;
+    }
+    for (let i = 0; i < 5; i++) {
+        const shuffled = [...boxes].sort(() => Math.random() - 0.5);
+        const res = pack(container, shuffled, gap);
+        if (!bestResult || res.totalPlaced > bestResult.totalPlaced) bestResult = res;
+    }
+    return bestResult;
+}
+
+function calculate() {
+    document.getElementById('loading').style.display = 'block';
+    setTimeout(() => {
+        try {
+            const container = {
+                length: +document.getElementById('vl').value || 12056,
+                width: +document.getElementById('vw').value || 2347,
+                height: +document.getElementById('vh').value || 2684
+            };
+            const maxWeight = +document.getElementById('vweight').value || 30000;
+            const gap = +document.getElementById('gap').value || 2;
+
+            const boxes = [];
+            const items = document.querySelectorAll('#box-list .box-item');
+            for (const item of items) {
+                const inp = item.querySelectorAll('input');
+                const l = +inp[0].value, w = +inp[1].value, h = +inp[2].value;
+                const q = +inp[3].value, weight = +inp[4].value;
+                if (l <= 0 || w <= 0 || h <= 0 || q <= 0 || weight < 0) {
+                    alert('Размеры, количество и вес должны быть положительными!');
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                }
+                boxes.push({ length: l, width: w, height: h, quantity: q, weight, id: boxes.length + 1 });
+            }
+            if (boxes.length === 0) {
+                alert('Добавьте хотя бы один товар');
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            const result = findBestPacking(container, boxes, gap);
+            const totalWeight = result.boxes.reduce((s, b) => s + b.placed * b.weight, 0);
+            if (totalWeight > maxWeight) {
+                alert(`⚠️ Превышена грузоподъёмность! ${totalWeight} кг > ${maxWeight} кг`);
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            currentResult = { ...result, container, maxWeight, totalWeight, weightUtilization: ((totalWeight / maxWeight) * 100).toFixed(1) };
+            showResults(currentResult);
+            draw(currentResult);
+        } catch (e) {
+            alert('Ошибка при расчёте: ' + e.message);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }, 50);
+}
+
+function showResults(r) {
+    const div = document.getElementById('results');
+    let html = `
+        <div class="result-card success">
+            <strong>Всего поместится:</strong> <span style="font-size:32px;color:#28a745">${r.totalPlaced} шт.</span>
+        </div>
+        <div class="statistics">
+            <div class="stat-item"><div class="stat-value">${r.utilization}%</div><div class="stat-label">Заполнение объёма</div></div>
+            <div class="stat-item"><div class="stat-value">${(r.usedVolume/1e9).toFixed(3)} м³</div><div class="stat-label">Занято из ${(r.totalVolume/1e9).toFixed(2)} м³</div></div>
+            <div class="stat-item"><div class="stat-value">${r.totalWeight} кг</div><div class="stat-label">Общий вес</div></div>
+            <div class="stat-item"><div class="stat-value">${r.weightUtilization}%</div><div class="stat-label">Загрузка по весу</div></div>
+        </div>
+        <div class="result-card">🔧 Зазор: <strong>${document.getElementById('gap').value} мм</strong></div>
+    `;
+    r.boxes.forEach(b => {
+        const st = b.placed === b.quantity ? '✅' : b.placed > 0 ? '⚠️' : '❌';
+        html += `<div class="result-card"><strong>Товар ${b.id}:</strong> ${b.length}×${b.width}×${b.height} мм<br>${st} Размещено: ${b.placed} из ${b.quantity} | Ориентация: ${b.orientation.join('×')}</div>`;
+    });
+    div.innerHTML = html;
+}
+
+function draw(r) {
+    if (!renderer) initThree();
+    while (scene.children.length > 0) {
+        const obj = scene.children[0];
+        scene.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
+        }
+    }
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+    dl.position.set(1, 1, 1);
+    scene.add(dl);
+    scene.add(new THREE.DirectionalLight(0xffffff, 0.4).position.set(-1, -0.5, -1));
+
+    const c = r.container;
+    const colors = [0x4CAF50, 0x2196F3, 0xFF9800, 0xE91E63, 0x9C27B0, 0x00BCD4, 0xFF5722, 0x607D8B];
+
+    const floorGeo = new THREE.PlaneGeometry(c.length, c.width);
+    const floor = new THREE.Mesh(floorGeo, new THREE.MeshPhongMaterial({ color: 0xcccccc, side: THREE.DoubleSide, transparent: true, opacity: 0.3 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(c.length / 2, 0, c.width / 2);
+    scene.add(floor);
+
+    const wireframe = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(c.length, c.height, c.width)),
+        new THREE.LineBasicMaterial({ color: 0x1976D2 })
+    );
+    wireframe.position.set(c.length / 2, c.height / 2, c.width / 2);
+    scene.add(wireframe);
+
+    const grouped = {};
+    r.boxes.forEach((box, idx) => {
+        if (!box.placed) return;
+        const key = box.orientation.join(',');
+        if (!grouped[key]) grouped[key] = { orientation: box.orientation, positions: [], color: colors[idx % colors.length], id: box.id };
+        grouped[key].positions.push(...box.positions);
+    });
+
+    for (const key in grouped) {
+        const group = grouped[key];
+        const [l, w, h] = group.orientation;
+        const geo = new THREE.BoxGeometry(l, h, w);
+        const mat = new THREE.MeshPhongMaterial({ color: group.color, transparent: true, opacity: 0.85 });
+        const count = group.positions.length;
+        const instancedMesh = new THREE.InstancedMesh(geo, mat, count);
+        const dummy = new THREE.Object3D();
+        group.positions.forEach((pos, i) => {
+            dummy.position.set(pos.x, pos.y, pos.z);
+            dummy.updateMatrix();
+            instancedMesh.setMatrixAt(i, dummy.matrix);
+
+            if (i === 0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText(`${l}×${w}×${h} мм`, 10, 40);
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.position.set(pos.x, pos.y + h/2 + 80, pos.z);
+                sprite.scale.set(180, 45, 1);
+                scene.add(sprite);
+            }
+        });
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        instancedMesh.castShadow = true;
+        instancedMesh.receiveShadow = true;
+        scene.add(instancedMesh);
+
+        const edgeGeo = new THREE.EdgesGeometry(geo);
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+        group.positions.forEach(pos => {
+            const edge = new THREE.LineSegments(edgeGeo, edgeMat);
+            edge.position.copy(pos);
+            scene.add(edge);
+        });
+    }
+
+    updateLegend(r);
+    controls.target.set(c.length / 2, c.height / 2, c.width / 2);
+    camera.position.set(c.length * 1.5, c.height * 1.5, c.width * 1.5);
+    controls.update();
+}
+
+function updateLegend(r) {
+    const legend = document.getElementById('legend');
+    const colors = ['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'];
+    let html = '<b>Легенда</b><br><br>';
+    r.boxes.forEach((b, i) => {
+        if (b.placed) html += `<span style="color:${colors[i%colors.length]}">■</span> Товар ${b.id}: ${b.orientation.join('×')} мм (${b.placed} шт.)<br>`;
+    });
+    html += `<br><span style="color:#1976D2">⬜</span> Контейнер: ${r.container.length}×${r.container.width}×${r.container.height} мм`;
+    legend.innerHTML = html;
+}
+
+function setView(view) {
+    if (!controls || !currentResult) return;
+    const t = controls.target;
+    const d = 20000;
+    switch (view) {
+        case 'front': camera.position.set(t.x, t.y, t.z + d); break;
+        case 'top':   camera.position.set(t.x, t.y + d, t.z); break;
+        case 'side':  camera.position.set(t.x + d, t.y, t.z); break;
+        case '3d':    camera.position.set(t.x + d/1.5, t.y + d/1.5, t.z + d/1.5); break;
+    }
+    controls.update();
+}
+
+function exportImage() {
+    if (!renderer) return alert('Сначала выполните расчёт');
+    renderer.render(scene, camera);
+    const a = document.createElement('a');
+    a.download = 'packing.png';
+    a.href = renderer.domElement.toDataURL();
+    a.click();
+}
+
+async function exportToPDF() {
+    if (!currentResult) return alert('Сначала выполните расчёт');
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+
+    // Заголовок
+    pdf.setFontSize(18);
+    pdf.text('Схема загрузки транспортного средства', 10, 15);
+
+    // Данные о ТС
+    pdf.setFontSize(12);
+    const vl = document.getElementById('vl').value;
+    const vw = document.getElementById('vw').value;
+    const vh = document.getElementById('vh').value;
+    const vweight = document.getElementById('vweight').value;
+    const gap = document.getElementById('gap').value;
+    pdf.text(`Размеры ТС: ${vl} × ${vw} × ${vh} мм | Грузоподъёмность: ${vweight} кг | Зазор: ${gap} мм`, 10, 25);
+
+    // Итоги
+    pdf.text(`Всего поместилось: ${currentResult.totalPlaced} шт. | Заполнение: ${currentResult.utilization}% | Общий вес: ${currentResult.totalWeight} кг`, 10, 32);
+
+    // Таблица товаров
+    pdf.setFontSize(11);
+    pdf.text('Детализация товаров:', 10, 42);
+    let y = 49;
+    pdf.setFontSize(10);
+    pdf.text('Товар', 10, y);
+    pdf.text('Размеры (мм)', 35, y);
+    pdf.text('Ориентация', 80, y);
+    pdf.text('Кол-во', 120, y);
+    pdf.text('Размещено', 145, y);
+    pdf.text('Статус', 170, y);
+    y += 5;
+    currentResult.boxes.forEach(b => {
+        pdf.text(`${b.id}`, 10, y);
+        pdf.text(`${b.length}×${b.width}×${b.height}`, 35, y);
+        pdf.text(`${b.orientation.join('×')}`, 80, y);
+        pdf.text(`${b.quantity}`, 120, y);
+        pdf.text(`${b.placed}`, 145, y);
+        pdf.text(`${b.placed === b.quantity ? 'OK' : b.placed + '/' + b.quantity}`, 170, y);
+        y += 5;
+    });
+
+    // 3D-схема
+    renderer.render(scene, camera);
+    const imgData = renderer.domElement.toDataURL('image/png');
+    pdf.addPage();
+    pdf.text('3D-визуализация загрузки', 10, 15);
+    pdf.addImage(imgData, 'PNG', 10, 20, 270, 180);
+
+    pdf.save('Загрузка_ТС.pdf');
+}
+
+function saveConfig() {
+    const conf = {
+        vehicle: {
+            length: document.getElementById('vl').value,
+            width: document.getElementById('vw').value,
+            height: document.getElementById('vh').value,
+            weight: document.getElementById('vweight').value,
+            gap: document.getElementById('gap').value
+        },
+        boxes: []
+    };
+    document.querySelectorAll('#box-list .box-item').forEach(item => {
+        const inp = item.querySelectorAll('input');
+        conf.boxes.push({
+            length: inp[0].value, width: inp[1].value, height: inp[2].value,
+            quantity: inp[3].value, weight: inp[4].value
+        });
+    });
+    localStorage.setItem('packingConf', JSON.stringify(conf));
+    alert('✅ Сохранено');
+}
+
+function loadConfig() {
+    const raw = localStorage.getItem('packingConf');
+    if (!raw) return alert('Нет сохранённой конфигурации');
+    const conf = JSON.parse(raw);
+    document.getElementById('vl').value = conf.vehicle.length;
+    document.getElementById('vw').value = conf.vehicle.width;
+    document.getElementById('vh').value = conf.vehicle.height;
+    document.getElementById('vweight').value = conf.vehicle.weight;
+    document.getElementById('gap').value = conf.vehicle.gap;
+    document.getElementById('box-list').innerHTML = '';
+    conf.boxes.forEach(b => {
+        addBox();
+        const last = document.querySelectorAll('#box-list .box-item');
+        const inp = last[last.length - 1].querySelectorAll('input');
+        inp[0].value = b.length; inp[1].value = b.width; inp[2].value = b.height;
+        inp[3].value = b.quantity; inp[4].value = b.weight;
+    });
+    updateNumbers();
+    alert('✅ Загружено');
+}
+
+document.getElementById('add-btn').addEventListener('click', addBox);
+document.getElementById('calc-btn').addEventListener('click', calculate);
+document.getElementById('export-scheme-btn').addEventListener('click', exportImage);
+document.getElementById('export-pdf-btn').addEventListener('click', exportToPDF);
+document.getElementById('save-btn').addEventListener('click', saveConfig);
+document.getElementById('load-btn').addEventListener('click', loadConfig);
+document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+window.addEventListener('load', () => {
+    document.getElementById('box-list').innerHTML = '';
+    addBox(); addBox(); addBox();
+    setTimeout(calculate, 500);
+});
+</script>
+</body>
+</html>
